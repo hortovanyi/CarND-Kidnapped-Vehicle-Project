@@ -25,7 +25,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
   // NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 
   // set the number of particles
-  num_particles = 1000;
+  num_particles = 500;
 
   // measurement yaw
   m_yaw = theta;
@@ -50,9 +50,9 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
   // initialise particles
   particles.clear();
   particles.resize(num_particles);
-  int id = 0;
+
   for (auto &p : particles) {
-    p.id = id++;
+    p.id = 0;
     p.x = dist_x(gen);
     p.y = dist_x(gen);
     p.theta = dist_theta(gen);
@@ -151,15 +151,15 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
   //   http://planning.cs.uiuc.edu/node99.html
 
   // initialise measurement covariance matrix
-  MatrixXd measurementCovar;
+  MatrixXd measurementCovar = MatrixXd(2, 2);
   measurementCovar << std_landmark[0], 0, 0, std_landmark[1];
 
   // initialise multi-variate gaussian distribution
-  VectorXd x, mu;
+  VectorXd x = VectorXd(2);
+  VectorXd mu = VectorXd(2);
   MatrixXd inverseMeasurementCovar = measurementCovar.inverse();
   MatrixXd c2 = 2 * M_PI * measurementCovar;
   double c3 = sqrt(c2.determinant());
-
 
   // for each particle
   for (auto &p : particles) {
@@ -242,7 +242,7 @@ void ParticleFilter::resample() {
 //
 //  // normalize weights
 //  weights.clear();
-//  weights.resize(num_particles);
+//  weights.reserve(num_particles);
 //  for (auto p : particles) {
 //    weights.push_back(p.weight/weights_sum);
 //  }
@@ -256,13 +256,12 @@ void ParticleFilter::resample() {
   int index = dis(genindex);
 
   vector<Particle> resampled_particles;
-  resampled_particles.resize(num_particles);
-
+  resampled_particles.reserve(num_particles);
 
   // find max weight and create particle weights vectors
   double max_weight = 0.0;
   weights.clear();
-  weights.resize(num_particles);
+  weights.reserve(num_particles);
   for (auto particle: particles) {
     if (particle.weight > max_weight)
       max_weight = particle.weight;
@@ -271,12 +270,12 @@ void ParticleFilter::resample() {
 
   // create random number generator for two times max weight
   mt19937 gen(rd());
-  uniform_real_distribution<double> dis_real(0, 1);
+  uniform_real_distribution<double> dis_real(0, 2.0 * max_weight);
 
   // resample
   for (auto particle: particles) {
-    beta += dis_real(gen) * 2.0 * max_weight;
-    while (beta > weights[index]) {
+    beta += dis_real(gen);
+    while ( weights[index] < beta) {
       beta -= weights[index];
       index = (index + 1) % num_particles;
     }

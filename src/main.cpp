@@ -50,23 +50,29 @@ int main() {
 	normal_distribution<double> N_obs_x(0, sigma_landmark[0]);
 	normal_distribution<double> N_obs_y(0, sigma_landmark[1]);
 	double n_x, n_y, n_theta, n_range, n_heading;
+
+	// eclipse and lldb have working directory not set
+	string proj_dir = "/Users/nick/Desktop/Udacity/CarND-Kidnapped-Vehicle-Project/";
 	// Read map data
 	Map map;
-	if (!read_map_data("data/map_data.txt", map)) {
+	if (!read_map_data(proj_dir+"data/map_data.txt", map)) {
+	//if (!read_map_data("data/map_data.txt", map)) {
 		cout << "Error: Could not open map file" << endl;
 		return -1;
 	}
 
 	// Read position data
 	vector<control_s> position_meas;
-	if (!read_control_data("data/control_data.txt", position_meas)) {
+  if (!read_control_data(proj_dir+"data/control_data.txt", position_meas)) {
+	//if (!read_control_data("data/control_data.txt", position_meas)) {
 		cout << "Error: Could not open position/control measurement file" << endl;
 		return -1;
 	}
 	
 	// Read ground truth data
 	vector<ground_truth> gt;
-	if (!read_gt_data("data/gt_data.txt", gt)) {
+  if (!read_gt_data(proj_dir+"data/gt_data.txt", gt)) {
+	//if (!read_gt_data("data/gt_data.txt", gt)) {
 		cout << "Error: Could not open ground truth data file" << endl;
 		return -1;
 	}
@@ -81,7 +87,8 @@ int main() {
 		cout << "Time step: " << i << endl;
 		// Read in landmark observations for current time step.
 		ostringstream file;
-		file << "data/observation/observations_" << setfill('0') << setw(6) << i+1 << ".txt";
+    file << proj_dir+"data/observation/observations_" << setfill('0') << setw(6) << i+1 << ".txt";
+//		file << "data/observation/observations_" << setfill('0') << setw(6) << i+1 << ".txt";
 		vector<LandmarkObs> observations;
 		if (!read_landmark_data(file.str(), observations)) {
 			cout << "Error: Could not open observation file " << i+1 << endl;
@@ -137,6 +144,9 @@ int main() {
 		// Print the cumulative weighted error
 		cout << "Cumulative mean weighted error: x " << cum_mean_error[0] << " y " << cum_mean_error[1] << " yaw " << cum_mean_error[2] << endl;
 		
+		// write particle filters
+	  pf.write(proj_dir+"output/particles"+to_string(i)+".txt");
+
 		// If the error is too high, say so and then exit.
 		if (i >= time_steps_before_lock_required) {
 			if (cum_mean_error[0] > max_translation_error || cum_mean_error[1] > max_translation_error || cum_mean_error[2] > max_yaw_error) {

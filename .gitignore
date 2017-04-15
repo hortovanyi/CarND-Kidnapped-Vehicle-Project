@@ -8,6 +8,10 @@ src/solutions
 
 /Debug
 
+output
+
+notebooks/.ipynb_checkpoints
+
 .cproject
 
 .project
