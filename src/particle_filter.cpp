@@ -151,15 +151,19 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
   //   http://planning.cs.uiuc.edu/node99.html
 
   // initialise measurement covariance matrix
-  MatrixXd measurementCovar = MatrixXd(2, 2);
+  int k = 2;
+  MatrixXd measurementCovar = MatrixXd(k, k);
   measurementCovar << std_landmark[0], 0, 0, std_landmark[1];
 
   // initialise multi-variate gaussian distribution
-  VectorXd x = VectorXd(2);
-  VectorXd mu = VectorXd(2);
+  VectorXd x = VectorXd(k);
+  VectorXd mu = VectorXd(k);
   MatrixXd inverseMeasurementCovar = measurementCovar.inverse();
   MatrixXd c2 = 2 * M_PI * measurementCovar;
   double c3 = sqrt(c2.determinant());
+
+
+
 
   // for each particle
   for (auto &p : particles) {
@@ -167,7 +171,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     vector<LandmarkObs> observations_map(observations);
     for (auto &o : observations_map) {
       o.x = o.x * cos(p.theta) - o.y * sin(p.theta) + p.x;
-      o.y = o.y * sin(p.theta) + o.y * cos(p.theta) - p.y;
+      o.y = o.x * sin(p.theta) + o.y * cos(p.theta) + p.y;
     }
 
     // predict landmarks within sensor range of this particle
@@ -188,6 +192,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     for (auto prediction : predicted) {
       predicted_lookup[prediction.id] = prediction;
     }
+
 
     // calculate multi variate gaussian weight
     double weight_product;
