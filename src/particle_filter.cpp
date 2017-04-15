@@ -25,7 +25,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
   // NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 
   // set the number of particles
-  num_particles = 500;
+  num_particles = 100;
 
   // measurement yaw
   m_yaw = theta;
@@ -153,12 +153,13 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
   // initialise measurement covariance matrix
   int k = 2;
   MatrixXd measurementCovar = MatrixXd(k, k);
-  measurementCovar << std_landmark[0], 0, 0, std_landmark[1];
+  double sigma_x=std_landmark[0];
+  double sigma_y=std_landmark[1];
+  measurementCovar << sigma_x * sigma_x , 0, 0, sigma_y * sigma_y ;
 
   // initialise multi-variate gaussian distribution
   VectorXd x = VectorXd(k);
   VectorXd mu = VectorXd(k);
-  MatrixXd inverseMeasurementCovar = measurementCovar.inverse();
   MatrixXd c2 = 2 * M_PI * measurementCovar;
   double c3 = sqrt(c2.determinant());
 
@@ -170,8 +171,10 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     // convert observations to map space http://planning.cs.uiuc.edu/node99.html
     vector<LandmarkObs> observations_map(observations);
     for (auto &o : observations_map) {
-      o.x = o.x * cos(p.theta) - o.y * sin(p.theta) + p.x;
-      o.y = o.x * sin(p.theta) + o.y * cos(p.theta) + p.y;
+      double vx = o.x * cos(p.theta) - o.y * sin(p.theta) + p.x;
+      double vy = o.x * sin(p.theta) + o.y * cos(p.theta) + p.y;
+      o.x = vx;
+      o.y = vy;
     }
 
     // predict landmarks within sensor range of this particle
@@ -195,8 +198,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
 
     // calculate multi variate gaussian weight
-    double weight_product;
-    bool first_measurement = true;
+    double weight_product = 1;
     for (auto measurement : observations_map) {
       // nearest neighbor observation to the predicted landmark
       LandmarkObs predicted_measurement = predicted_lookup[measurement.id];  // id points to landmark
@@ -205,14 +207,9 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       x << measurement.x, measurement.y;
       mu << predicted_measurement.x, predicted_measurement.y;
 
-      double weight = exp(double(-0.5 * (x - mu).transpose() * inverseMeasurementCovar * (x - mu))) / c3;
+      double weight = exp(double(-0.5 * (x - mu).transpose() * measurementCovar.inverse() * (x - mu))) / c3;
 
-      if (first_measurement) {
-        weight_product = weight;
-        first_measurement = false;
-      } else {
-        weight_product *= weight;
-      }
+      weight_product *= weight;
     }
 
     p.weight = weight_product;
@@ -225,8 +222,8 @@ double ParticleFilter::multiVariateGaussianWeight(
     LandmarkObs predicted_measurement, LandmarkObs measurement,
     const MatrixXd& measurementCovar) {
   VectorXd x, mu;
-  x << measurement.x, measurement.y;
-  mu << predicted_measurement.x, predicted_measurement.y;
+  mu << measurement.x, measurement.y;
+  x << predicted_measurement.x, predicted_measurement.y;
 
   double c1 = -0.5 * (x - mu).transpose() * measurementCovar.inverse()
       * (x - mu);
