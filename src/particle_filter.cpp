@@ -117,23 +117,56 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted,
   // NOTE: this method will NOT be called by the grading code. But you will probably find it useful to
   //   implement this method and use it as a helper during the updateWeights phase.
 
-  // for each observation find the nearest landmark
-  for (auto &observation : observations) {
+//  // for each observation find the nearest landmark
+//  for (auto &observation : observations) {
+//    double closest_dist = numeric_limits<double>::max();
+//    for (auto prediction : predicted) {
+//
+//      double d = dist(observation.x, observation.y, prediction.x, prediction.y);
+//
+//      // found a predicted landmark closer to the observation
+//      if (d < closest_dist) {
+//        // reassign this predicted landmark id to the current
+//        observation.id = prediction.id;
+//
+//        // save current as closest
+//        closest_dist = d;
+//      }
+//    }
+//  }
+
+  // assign each predicted landmark to only one measurement observation
+  for (auto prediction : predicted) {
     double closest_dist = numeric_limits<double>::max();
-    for (auto prediction : predicted) {
+    LandmarkObs* prev_closest_observation = NULL;
+    for (auto &observation : observations) {
+      // if this observation has already been assigned to a landmark continue to next
+      if (observation.id > 0)
+        continue;
 
       double d = dist(observation.x, observation.y, prediction.x, prediction.y);
-
-      // found a predicted landmark closer to the observation
+      // if we've found an observation that is closer to the landmark
       if (d < closest_dist) {
-        // reassign this predicted landmark id to the current
+        // reset the id for the previous if previously assigned
+        if (prev_closest_observation != NULL) {
+          prev_closest_observation->id = -1;
+        }
+        // make this the closest for the predicted
         observation.id = prediction.id;
 
-        // save current as closest
+        // same this as the previous closest
+        prev_closest_observation = &observation;
+
         closest_dist = d;
       }
     }
   }
+
+  // we only want the closest - remove the other observations
+  observations.erase(
+      remove_if(observations.begin(), observations.end(),
+                [] (const LandmarkObs & lo) {return lo.id < 1;}),
+      observations.end());
 
 }
 
@@ -153,9 +186,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
   //   http://planning.cs.uiuc.edu/node99.html
 
   // extract sigma x,y to local variables
-  double sigma_x=std_landmark[0];
-  double sigma_y=std_landmark[1];
-
+  double sigma_x = std_landmark[0];
+  double sigma_y = std_landmark[1];
 
 //  // initialise vectors and measurement covariance matrix
 //  int k = 2;
@@ -178,6 +210,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       double vy = o.x * sin(p.theta) + o.y * cos(p.theta) + p.y;
       o.x = vx;
       o.y = vy;
+      o.id = 0;  // landmark ids > 0
     }
 
     // predict landmarks within sensor range of this particle
@@ -196,12 +229,11 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     // predicted landmark lookup
     map<int, LandmarkObs> predictedMap;
     for (auto prediction : predicted) {
-      predictedMap.insert({prediction.id, prediction});
+      predictedMap.insert( { prediction.id, prediction });
     }
 
-
     // calculate multi variate gaussian weight
-    long double weight_product = 1;
+    double weight_product = 1;
     for (auto measurement : observations_map) {
       // measurement.id points to landmark - which is considered the mean of multivariate-gaussian
       LandmarkObs predicted_measurement = predictedMap[measurement.id];  // id points to landmark
@@ -212,21 +244,22 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 //
 //      cout << "x: " << x << endl << " mu: " << mu << endl;
 //
-//      long double weight = exp(-double(0.5 * (x - mu).transpose() * measurementCovar.inverse() * (x - mu))) / c3;
+//      double weight = exp(-double(0.5 * (x - mu).transpose() * measurementCovar.inverse() * (x - mu))) / c3;
 //
       // bi-variate gaussian weight
       double mu_x = predicted_measurement.x;
       double mu_y = predicted_measurement.y;
-      double x =  measurement.x;
+      double x = measurement.x;
       double y = measurement.y;
 
-      double c1 = 1.0/(2.0*M_PI*sigma_x*sigma_y);
-      double c2 =  pow(x-mu_x,2) / pow(sigma_x,2);
-      double c3 = pow(y-mu_y,2) / pow(sigma_y,2);
-      double weight = c1* exp(-0.5*(c2+c3));
+      double c1 = 1.0 / (2.0 * M_PI * sigma_x * sigma_y);
+      double c2 = pow(x - mu_x, 2) / pow(sigma_x, 2);
+      double c3 = pow(y - mu_y, 2) / pow(sigma_y, 2);
+      double weight = c1 * exp(-0.5 * (c2 + c3));
 
       weight_product *= weight;
-      cout << "weight_product: " << weight_product << " weight: " << weight << endl;
+      cout << "weight_product: " << weight_product << " weight: " << weight
+           << endl;
     }
 
     p.weight = weight_product;
@@ -251,12 +284,11 @@ void ParticleFilter::resample() {
 //    weights.push_back(p.weight/weights_sum);
 //  }
 
-
   // intialise resampling wheel
   double beta = 0.0;
   random_device rd;
   mt19937 genindex(rd());
-  uniform_int_distribution<int> dis(0, num_particles);
+  uniform_int_distribution<int> dis(0, num_particles - 1);
   int index = dis(genindex);
 
   vector<Particle> resampled_particles;
@@ -266,7 +298,7 @@ void ParticleFilter::resample() {
   double max_weight = 0.0;
   weights.clear();
   weights.reserve(num_particles);
-  for (auto particle: particles) {
+  for (auto particle : particles) {
     if (particle.weight > max_weight)
       max_weight = particle.weight;
     weights.push_back(particle.weight);
@@ -277,9 +309,9 @@ void ParticleFilter::resample() {
   uniform_real_distribution<double> dis_real(0, 2.0 * max_weight);
 
   // resample
-  for (auto particle: particles) {
+  for (auto particle : particles) {
     beta += dis_real(gen);
-    while ( weights[index] < beta) {
+    while (weights[index] < beta) {
       beta -= weights[index];
       index = (index + 1) % num_particles;
     }
@@ -294,7 +326,8 @@ void ParticleFilter::resample() {
 void ParticleFilter::write(std::string filename) {
   // You don't need to modify this file.
   std::ofstream dataFile;
-  dataFile.open(filename, std::ios::app);
+//  dataFile.open(filename, std::ios::app);
+  dataFile.open(filename, std::ios::trunc);
   for (int i = 0; i < num_particles; ++i) {
     dataFile << particles[i].x << " " << particles[i].y << " "
              << particles[i].theta << "\n";
