@@ -101,6 +101,10 @@ int main() {
 			n_y = N_y_init(gen);
 			n_theta = N_theta_init(gen);
 			pf.init(gt[i].x + n_x, gt[i].y + n_y, gt[i].theta + n_theta, sigma_pos);
+
+		  // write particle filters
+		  pf.write(proj_dir+"output/particles"+to_string(i-1)+".txt");
+
 			cout << "Init complete" << endl;
 		}
 		else {

@@ -257,6 +257,9 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       double c3 = pow(y - mu_y, 2) / pow(sigma_y, 2);
       double weight = c1 * exp(-0.5 * (c2 + c3));
 
+      if (weight < .0001)
+        weight = .0001;
+
       weight_product *= weight;
       cout << "weight_product: " << weight_product << " weight: " << weight
            << endl;
