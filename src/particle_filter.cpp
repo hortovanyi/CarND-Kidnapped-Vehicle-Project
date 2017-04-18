@@ -11,6 +11,8 @@
 #include <numeric>
 #include <map>
 #include <cctype>
+#include <Eigen/Dense>
+#include <cmath>
 
 #include "particle_filter.h"
 
@@ -150,21 +152,22 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
   //   for the fact that the map's y-axis actually points downwards.)
   //   http://planning.cs.uiuc.edu/node99.html
 
-  // initialise measurement covariance matrix
-  int k = 2;
-  MatrixXd measurementCovar = MatrixXd(k, k);
+  // extract sigma x,y to local variables
   double sigma_x=std_landmark[0];
   double sigma_y=std_landmark[1];
-  measurementCovar << sigma_x * sigma_x , 0, 0, sigma_y * sigma_y ;
-
-  // initialise multi-variate gaussian distribution
-  VectorXd x = VectorXd(k);
-  VectorXd mu = VectorXd(k);
-  MatrixXd c2 = 2 * M_PI * measurementCovar;
-  double c3 = sqrt(c2.determinant());
 
 
-
+//  // initialise vectors and measurement covariance matrix
+//  int k = 2;
+//  VectorXd x = VectorXd(k);
+//  VectorXd mu = VectorXd(k);
+//  MatrixXd measurementCovar = MatrixXd(k, k);
+//
+//  measurementCovar << sigma_x * sigma_x , 0, 0, sigma_y * sigma_y ;
+//
+//  // initialise multi-variate gaussian distribution
+//  MatrixXd c2 = 2.0 * M_PI * measurementCovar;
+//  double c3 = sqrt(c2.determinant());
 
   // for each particle
   for (auto &p : particles) {
@@ -191,45 +194,44 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     dataAssociation(predicted, observations_map);
 
     // predicted landmark lookup
-    map<int, LandmarkObs> predicted_lookup;
+    map<int, LandmarkObs> predictedMap;
     for (auto prediction : predicted) {
-      predicted_lookup[prediction.id] = prediction;
+      predictedMap.insert({prediction.id, prediction});
     }
 
 
     // calculate multi variate gaussian weight
-    double weight_product = 1;
+    long double weight_product = 1;
     for (auto measurement : observations_map) {
-      // nearest neighbor observation to the predicted landmark
-      LandmarkObs predicted_measurement = predicted_lookup[measurement.id];  // id points to landmark
+      // measurement.id points to landmark - which is considered the mean of multivariate-gaussian
+      LandmarkObs predicted_measurement = predictedMap[measurement.id];  // id points to landmark
 
-      // multi-variate gaussian distribution calculation
-      x << measurement.x, measurement.y;
-      mu << predicted_measurement.x, predicted_measurement.y;
+//      // multi-variate gaussian distribution calculation
+//      x << measurement.x, measurement.y;
+//      mu << predicted_measurement.x, predicted_measurement.y;
+//
+//      cout << "x: " << x << endl << " mu: " << mu << endl;
+//
+//      long double weight = exp(-double(0.5 * (x - mu).transpose() * measurementCovar.inverse() * (x - mu))) / c3;
+//
+      // bi-variate gaussian weight
+      double mu_x = predicted_measurement.x;
+      double mu_y = predicted_measurement.y;
+      double x =  measurement.x;
+      double y = measurement.y;
 
-      double weight = exp(double(-0.5 * (x - mu).transpose() * measurementCovar.inverse() * (x - mu))) / c3;
+      double c1 = 1.0/(2.0*M_PI*sigma_x*sigma_y);
+      double c2 =  pow(x-mu_x,2) / pow(sigma_x,2);
+      double c3 = pow(y-mu_y,2) / pow(sigma_y,2);
+      double weight = c1* exp(-0.5*(c2+c3));
 
       weight_product *= weight;
+      cout << "weight_product: " << weight_product << " weight: " << weight << endl;
     }
 
     p.weight = weight_product;
   }
 
-}
-
-// TODO remove later once the above code works
-double ParticleFilter::multiVariateGaussianWeight(
-    LandmarkObs predicted_measurement, LandmarkObs measurement,
-    const MatrixXd& measurementCovar) {
-  VectorXd x, mu;
-  mu << measurement.x, measurement.y;
-  x << predicted_measurement.x, predicted_measurement.y;
-
-  double c1 = -0.5 * (x - mu).transpose() * measurementCovar.inverse()
-      * (x - mu);
-  MatrixXd c2 = 2 * M_PI * measurementCovar;
-  double c3 = c2.determinant();
-  return exp(c1) / sqrt(c3);
 }
 
 void ParticleFilter::resample() {

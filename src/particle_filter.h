@@ -10,9 +10,6 @@
 #define PARTICLE_FILTER_H_
 
 #include "helper_functions.h"
-#include <Eigen/Dense>
-
-using Eigen::MatrixXd;
 
 struct Particle {
 
@@ -111,15 +108,6 @@ public:
 	const bool initialized() const {
 		return is_initialized;
 	}
-
-
-	/**
-	   * multiVariateGaussianWeight - calculate weight using multi-variate gaussian distribution
-	   * @param predicted landmark measurement
-	   * @param nearest measurement
-	   * @param std_landmark[] Array of dimension 2 [sigma x, sigma y]
-	   */
-	inline double multiVariateGaussianWeight(LandmarkObs predicted_measurement, LandmarkObs measurement, const MatrixXd& measurementCovar);
 };
 
 
