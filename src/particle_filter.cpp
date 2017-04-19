@@ -11,14 +11,14 @@
 #include <numeric>
 #include <map>
 #include <cctype>
-#include <Eigen/Dense>
+//#include <Eigen/Dense>
 #include <cmath>
 
 #include "particle_filter.h"
 
 using namespace std;
-using Eigen::MatrixXd;
-using Eigen::VectorXd;
+//using Eigen::MatrixXd;
+//using Eigen::VectorXd;
 
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
   // TODO: Set the number of particles. Initialize all particles to first position (based on estimates of
@@ -27,7 +27,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
   // NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 
   // set the number of particles
-  num_particles = 100;
+  num_particles = 1000;
 
   // measurement yaw
   m_yaw = theta;
@@ -56,7 +56,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
   for (auto &p : particles) {
     p.id = 0;
     p.x = dist_x(gen);
-    p.y = dist_x(gen);
+    p.y = dist_y(gen);
     p.theta = dist_theta(gen);
     p.weight = 1.0;
   }
@@ -82,6 +82,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
   // initialise the random number generator
   random_device rd;
   mt19937 gen(rd());
+//  default_random_engine gen;
 
   for (auto &p : particles) {
     double yaw = p.theta;
@@ -103,9 +104,9 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
     normal_distribution<double> dist_theta(p.theta, std_theta);
 
     // add noise
-    p.x += dist_x(gen);
-    p.y += dist_y(gen);
-    p.theta += dist_theta(gen);
+    p.x = dist_x(gen);
+    p.y = dist_y(gen);
+    p.theta = dist_theta(gen);
   }
 
 }
@@ -189,6 +190,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
   double sigma_x = std_landmark[0];
   double sigma_y = std_landmark[1];
 
+// Eigen version too slow to meet specification - but left commented out code in for posterity
 //  // initialise vectors and measurement covariance matrix
 //  int k = 2;
 //  VectorXd x = VectorXd(k);
@@ -241,11 +243,11 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 //      // multi-variate gaussian distribution calculation
 //      x << measurement.x, measurement.y;
 //      mu << predicted_measurement.x, predicted_measurement.y;
-//
+
 //      cout << "x: " << x << endl << " mu: " << mu << endl;
-//
+
 //      double weight = exp(-double(0.5 * (x - mu).transpose() * measurementCovar.inverse() * (x - mu))) / c3;
-//
+
       // bi-variate gaussian weight
       double mu_x = predicted_measurement.x;
       double mu_y = predicted_measurement.y;
@@ -261,8 +263,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         weight = .0001;
 
       weight_product *= weight;
-      cout << "weight_product: " << weight_product << " weight: " << weight
-           << endl;
+//      cout << "weight_product: " << weight_product << " weight: " << weight
+//           << endl;
     }
 
     p.weight = weight_product;
@@ -306,6 +308,15 @@ void ParticleFilter::resample() {
       max_weight = particle.weight;
     weights.push_back(particle.weight);
   }
+
+// another approach to resampling that produces similiar results
+//  default_random_engine gen;
+//  discrete_distribution<> distribution(weights.begin(), weights.end());
+//
+//  for (int i = 0; i<num_particles; ++i) {
+//     int number = distribution(gen);
+//     resampled_particles.push_back(particles[number]);
+//  }
 
   // create random number generator for two times max weight
   mt19937 gen(rd());
