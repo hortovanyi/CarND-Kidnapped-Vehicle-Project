@@ -26,10 +26,7 @@ class ParticleFilter {
 	
 	// Number of particles to draw
 	int num_particles;
-	
-	// measurement yaw
-	double m_yaw;
-	
+
 	// Flag, if filter is initialized
 	bool is_initialized;
 	

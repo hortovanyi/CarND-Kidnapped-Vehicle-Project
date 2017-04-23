@@ -30,7 +30,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
   num_particles = 1000;
 
   // measurement yaw
-  m_yaw = theta;
+  double m_yaw = theta;
 
   // Set standard deviations for x, y, and psi
   double std_x = std[0];
@@ -77,7 +77,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
   double std_theta = std_pos[2];
 
   // measurement yaw
-  m_yaw = yaw_rate * delta_t;
+  double m_yaw = yaw_rate * delta_t;
 
   // initialise the random number generator
   random_device rd;
